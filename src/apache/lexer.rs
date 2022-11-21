@@ -14,6 +14,8 @@ use nom::{
     IResult,
 };
 
+use crate::lexer::Literal;
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Token<'a> {
     OpenTag,
@@ -21,7 +23,7 @@ pub enum Token<'a> {
     CloseTag,
     NewLine,
     Eof,
-    Literal { raw: &'a str, quote: u8 },
+    Literal(Literal<'a>),
 }
 
 impl<'a> Token<'a> {
@@ -31,26 +33,14 @@ impl<'a> Token<'a> {
     }
 
     pub fn raw_string(&self) -> Option<&'a str> {
-        match self {
-            Self::Literal { raw, .. } => Some(*raw),
-            _ => None,
-        }
+        self.literal().map(|l| l.raw)
     }
 
-    pub fn unescape(&self) -> Option<String> {
-        Some(match self {
-            Self::Literal { raw, quote } => {
-                let s = raw.replace(r#"\\"#, "\\");
-                if *quote == b'"' {
-                    s.replace(r#"\""#, "\"")
-                } else if *quote == b'\'' {
-                    s.replace(r#"\'"#, "'")
-                } else {
-                    s.replace("\\\n", "\n")
-                }
-            }
-            _ => return None,
-        })
+    pub fn literal(&self) -> Option<Literal<'a>> {
+        match self {
+            Self::Literal(l) => Some(*l),
+            _ => None,
+        }
     }
 }
 
@@ -118,7 +108,7 @@ fn literal(input: &[u8]) -> IResult<&[u8], Token> {
             )(input)
         }
     }?;
-    Ok((input, Token::Literal { raw, quote: first }))
+    Ok((input, Token::Literal(Literal { raw, quote: first })))
 }
 
 pub fn tokenizer(input: &[u8]) -> IResult<&[u8], Token> {

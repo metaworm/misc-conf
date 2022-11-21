@@ -2,13 +2,16 @@ pub mod lexer;
 
 use std::path::Path;
 
-use crate::ast::{Directive, DirectiveTrait};
+use crate::{
+    ast::{Directive, DirectiveTrait},
+    lexer::Literal,
+};
 
 use self::lexer::*;
 
 use anyhow::Context;
 use nom::{
-    combinator::fail,
+    combinator::{fail, map},
     error::{ContextError, ParseError, VerboseError},
     multi::many0,
 };
@@ -66,11 +69,11 @@ impl DirectiveTrait<Nginx> for Directive<Nginx> {
     }
 }
 
-fn parse_literal(input: &[u8]) -> IResult<&[u8], String> {
+fn parse_literal(input: &[u8]) -> IResult<&[u8], Literal<'_>> {
     let (rest, tok) = tokenizer(input)?;
     match tok {
-        Token::Literal { .. } => Ok((rest, tok.unescape().unwrap())),
-        Token::Eof | Token::BlockEnd => Ok((rest, "".into())),
+        Token::Literal(l) => Ok((rest, l)),
+        Token::Eof | Token::BlockEnd => Ok((rest, Default::default())),
         _else => fail(input),
     }
 }
@@ -82,12 +85,14 @@ fn parse_block(mut input: &[u8]) -> IResult<&[u8], Vec<Directive<Nginx>>> {
         let (rest, tag) = parse_literal(input).map_err(|err| {
             err.map(|err| VerboseError::add_context(input, "unexpected item token", err))
         })?;
-        if tag.is_empty() {
+        if tag.raw.is_empty() {
             break;
         }
         d.name = tag.into();
 
-        let (rest, args) = many0(parse_literal)(rest)?;
+        let (rest, args) = map(many0(parse_literal), |v| {
+            v.into_iter().map(Into::into).collect()
+        })(rest)?;
         d.args = args;
 
         let (rest, tok) = tokenizer(rest)?;

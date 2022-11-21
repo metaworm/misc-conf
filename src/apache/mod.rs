@@ -108,8 +108,8 @@ fn parse_one<'a>(input: &'a [u8], tok: Token<'a>) -> IResult<&'a [u8], Directive
                 },
             )(rest)
         }
-        Token::Literal { raw, .. } => map(parse_args::<true>, |args| Directive {
-            name: raw.into(),
+        Token::Literal(l) => map(parse_args::<true>, |args| Directive {
+            name: l.raw.into(),
             args,
             children: None,
             ..Default::default()
@@ -122,8 +122,8 @@ fn parse_args<const NL: bool>(mut input: &[u8]) -> IResult<&[u8], Vec<String>> {
     let mut result = vec![];
     loop {
         let (rest, tok) = inner_tokenizer::<NL>(input)?;
-        if let Some(s) = tok.unescape() {
-            result.push(s);
+        if let Some(l) = tok.literal() {
+            result.push(l.into());
         } else {
             break;
         }
