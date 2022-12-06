@@ -9,3 +9,4 @@ edition = "2021"
 nom = '7'
 glob = '0.3'
 anyhow = '1'
+regex = '1'

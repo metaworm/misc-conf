@@ -5,7 +5,10 @@ use std::{
 
 use anyhow::Context;
 
-use crate::lexer::Literal;
+use crate::{
+    cpath::{CPath, Filter},
+    lexer::Literal,
+};
 
 pub trait Lit = Eq + PartialEq + for<'a> From<Literal<'a>> + Clone + Default;
 
@@ -109,12 +112,9 @@ where
 impl<S, T> Directive<S, T>
 where
     S: Clone + Default,
-    T: Lit,
+    T: Lit + AsRef<str>,
 {
-    pub fn query(&self, path: &str) -> Vec<Self>
-    where
-        T: AsRef<str>,
-    {
+    pub fn query(&self, path: &str) -> Vec<Self> {
         let mut result = vec![];
         if let Some(childs) = self.children.as_ref() {
             Self::inner_query(childs, path, &mut result);
@@ -122,10 +122,7 @@ where
         result
     }
 
-    fn inner_query(dirs: &[Self], path: &str, out: &mut Vec<Self>)
-    where
-        T: AsRef<str>,
-    {
+    fn inner_query(dirs: &[Self], path: &str, out: &mut Vec<Self>) {
         let mut pathitem = path;
         let mut rest = None;
         if let Some((i, r)) = path.split_once("/") {
@@ -144,6 +141,45 @@ where
                     out.push(d.clone());
                 }
             }
+        }
+    }
+
+    pub fn cpath_query(&self, path: &CPath) -> Vec<Self> {
+        let mut result = vec![];
+        if let Some(childs) = self.children.as_ref() {
+            Self::inner_cpath_query(childs, path, &mut result);
+        }
+        result
+    }
+
+    fn inner_cpath_query(dirs: &[Self], path: &CPath, out: &mut Vec<Self>) {
+        let (item, rest, anylevel) = match path.peek() {
+            Some(x) => x,
+            _ => return,
+        };
+
+        for d in dirs.iter() {
+            let childs = d.children.as_ref().map(Vec::as_slice).unwrap_or(&[]);
+            if d.match_filter(&item.filter) {
+                // leaf match
+                if rest.is_empty() {
+                    out.push(d.clone());
+                } else {
+                    Self::inner_cpath_query(childs, rest, out);
+                }
+            }
+            if anylevel {
+                Self::inner_cpath_query(childs, path, out);
+            }
+        }
+    }
+
+    fn match_filter(&self, filter: &Filter) -> bool {
+        match filter {
+            Filter::Eq(n) => self.name.as_ref().eq_ignore_ascii_case(n),
+            Filter::Re(re) => re.is_match(self.name.as_ref()),
+            Filter::Any => true,
+            Filter::AnyLevel => false,
         }
     }
 }

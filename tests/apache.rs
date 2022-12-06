@@ -46,3 +46,16 @@ fn string() {
     let res = cfg.root.query("Files");
     assert!(res[0].args[0] == "\\.ht*");
 }
+
+#[test]
+fn cpath() {
+    use misc_conf::cpath::*;
+
+    let cfg = parse("tests/apache/extra/httpd-vhosts.conf");
+    // println!("{:#?}", cfg.root);
+
+    let res = cfg
+        .root
+        .cpath_query(&CPathBuf::parse("//ServerAdmin").unwrap());
+    println!("{res:#?}");
+}
