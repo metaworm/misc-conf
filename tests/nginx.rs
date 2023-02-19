@@ -30,7 +30,7 @@ fn verify() {
 #[test]
 fn include() {
     let mut conf = parse("tests/nginx/include.conf");
-    conf.resolve_include(None);
+    conf.resolve_include(None).unwrap();
     let conf2 = parse("tests/nginx/index.conf");
     assert_eq!(conf.root, conf2.root);
 }

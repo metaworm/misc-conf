@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::{
     ast::{Directive, DirectiveTrait},
-    lexer::Literal,
+    lexer::{line_column, Literal},
 };
 
 use self::lexer::*;
@@ -122,16 +122,4 @@ fn parse_block(mut input: &[u8]) -> IResult<&[u8], Vec<Directive<Nginx>>> {
         result.push(d);
     }
     Ok((input, result))
-}
-
-fn line_column(data: &[u8], pos: usize) -> (usize, usize) {
-    let mut ln = 1;
-    for line in data.split(|&b| b == b'\n') {
-        let lp = unsafe { line.as_ptr().sub_ptr(data.as_ptr()) };
-        if (lp..=lp + line.len()).contains(&pos) {
-            return (ln, pos - lp);
-        }
-        ln += 1;
-    }
-    (ln, 0)
 }

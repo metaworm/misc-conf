@@ -1,4 +1,5 @@
 use std::{
+    fmt::Debug,
     marker::PhantomData,
     path::{Path, PathBuf},
 };
@@ -20,7 +21,6 @@ where
 {
     pub path: PathBuf,
     pub root: Directive<S, T>,
-    pub(crate) _scheme: PhantomData<S>,
 }
 
 impl<S, T> Config<S, T>
@@ -77,7 +77,7 @@ where
     fn resolve_include_inner(self, dir: &Path, out: &mut Vec<Self>) -> anyhow::Result<()>;
 }
 
-#[derive(Debug, Clone, Default, Eq)]
+#[derive(Clone, Default, Eq)]
 pub struct Directive<S, T = String>
 where
     S: Clone + Default,
@@ -87,6 +87,20 @@ where
     pub args: Vec<T>,
     pub children: Option<Vec<Directive<S, T>>>,
     pub(crate) _scheme: PhantomData<S>,
+}
+
+impl<S: Debug, T: Debug> Debug for Directive<S, T>
+where
+    S: Clone + Default,
+    T: Lit,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Directive")
+            .field("name", &self.name)
+            .field("args", &self.args)
+            .field("children", &self.children)
+            .finish()
+    }
 }
 
 impl<S, T> PartialEq for Directive<S, T>
