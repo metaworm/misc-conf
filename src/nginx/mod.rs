@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::{
     ast::{Directive, DirectiveTrait},
-    lexer::{line_column, Literal},
+    lexer::{line_column2, Literal},
 };
 
 use self::lexer::*;
@@ -26,9 +26,8 @@ impl DirectiveTrait<Nginx> for Directive<Nginx> {
                 let errs = e
                     .errors
                     .iter()
-                    .map(|(input, code)| {
-                        let pos = unsafe { input.as_ptr().sub_ptr(input.as_ptr()) };
-                        let (l, c) = line_column(input, pos);
+                    .map(|(i, code)| {
+                        let ((l, c), pos) = line_column2(input, i).unwrap();
                         format!("0x{pos:x}({l}:{c}) err: {:?}", code)
                     })
                     .collect::<Vec<_>>();

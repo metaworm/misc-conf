@@ -28,11 +28,18 @@ impl<'a> From<Literal<'a>> for String {
 pub fn line_column(data: &[u8], pos: usize) -> (usize, usize) {
     let mut ln = 1;
     for line in data.split(|&b| b == b'\n') {
-        let lp = unsafe { line.as_ptr().sub_ptr(data.as_ptr()) };
+        let lp = (line.as_ptr() as usize)
+            .checked_sub(data.as_ptr() as usize)
+            .expect("sub ptr");
         if (lp..=lp + line.len()).contains(&pos) {
             return (ln, pos - lp);
         }
         ln += 1;
     }
     (ln, 0)
+}
+
+pub fn line_column2(data: &[u8], err: &[u8]) -> Option<((usize, usize), usize)> {
+    let pos = (err.as_ptr() as usize).checked_sub(data.as_ptr() as usize)?;
+    Some((line_column(data, pos), pos))
 }

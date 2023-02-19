@@ -1,6 +1,6 @@
-use std::{ops::Deref, path::Path};
+use std::ops::Deref;
 
-use crate::lexer::Literal;
+use crate::lexer::{line_column2, Literal};
 use nom::{
     branch::alt,
     bytes::complete::{escaped, tag},
@@ -54,9 +54,8 @@ impl CPathBuf {
                 let errs = e
                     .errors
                     .iter()
-                    .map(|(input, code)| {
-                        let pos = unsafe { input.as_ptr().sub_ptr(input.as_ptr()) };
-                        let (l, c) = line_column(input, pos);
+                    .map(|(i, code)| {
+                        let ((l, c), pos) = line_column2(path.as_ref(), i).unwrap();
                         format!("0x{pos:x}({l}:{c}) err: {:?}", code)
                     })
                     .collect::<Vec<_>>();
@@ -303,16 +302,4 @@ fn parse_cpath(mut input: &[u8]) -> IResult<&[u8], CPathBuf> {
     }
 
     Ok((input, CPathBuf(res)))
-}
-
-fn line_column(data: &[u8], pos: usize) -> (usize, usize) {
-    let mut ln = 1;
-    for line in data.split(|&b| b == b'\n') {
-        let lp = unsafe { line.as_ptr().sub_ptr(data.as_ptr()) };
-        if (lp..=lp + line.len()).contains(&pos) {
-            return (ln, pos - lp);
-        }
-        ln += 1;
-    }
-    (ln, 0)
 }

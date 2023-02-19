@@ -2,7 +2,10 @@ pub mod lexer;
 
 use std::path::Path;
 
-use crate::{ast::{Directive, DirectiveTrait}, lexer::line_column};
+use crate::{
+    ast::{Directive, DirectiveTrait},
+    lexer::line_column2,
+};
 
 use self::lexer::*;
 
@@ -20,8 +23,7 @@ impl DirectiveTrait<Apache> for Directive<Apache> {
     fn parse(input: &[u8]) -> anyhow::Result<Vec<Self>> {
         let res = parse_block(input).map_err(|err| {
             err.map(|e| {
-                let pos = unsafe { e.input.as_ptr().sub_ptr(input.as_ptr()) };
-                let (l, c) = line_column(input, pos);
+                let ((l, c), pos) = line_column2(input, e.input).unwrap();
                 anyhow::anyhow!("{pos}({l}:{c}) err: {:?}", e.code)
             })
         })?;
@@ -132,4 +134,3 @@ fn parse_args<const NL: bool>(mut input: &[u8]) -> IResult<&[u8], Vec<String>> {
     // println!("[args] {result:?}");
     Ok((input, result))
 }
-

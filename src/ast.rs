@@ -11,13 +11,15 @@ use crate::{
     lexer::Literal,
 };
 
-pub trait Lit = Eq + PartialEq + for<'a> From<Literal<'a>> + Clone + Default;
+pub trait FromLiteral: Eq + PartialEq + for<'a> From<Literal<'a>> + Clone + Default {}
+
+impl<T: Eq + PartialEq + for<'a> From<Literal<'a>> + Clone + Default> FromLiteral for T {}
 
 #[derive(Debug, Clone, Default)]
 pub struct Config<S, T = String>
 where
     S: Clone + Default,
-    T: Lit,
+    T: FromLiteral,
 {
     pub path: PathBuf,
     pub root: Directive<S, T>,
@@ -27,7 +29,7 @@ impl<S, T> Config<S, T>
 where
     Directive<S, T>: DirectiveTrait<S, T>,
     S: Clone + Default,
-    T: Lit,
+    T: FromLiteral,
 {
     pub fn parse(path: PathBuf) -> anyhow::Result<Self> {
         let data = std::fs::read(&path)?;
@@ -59,7 +61,7 @@ pub trait DirectiveTrait<S, T = String>: Sized + AsMut<Directive<S, T>>
 where
     Directive<S, T>: DirectiveTrait<S, T>,
     S: Clone + Default,
-    T: Lit,
+    T: FromLiteral,
 {
     fn parse(input: &[u8]) -> anyhow::Result<Vec<Self>>;
 
@@ -81,7 +83,7 @@ where
 pub struct Directive<S, T = String>
 where
     S: Clone + Default,
-    T: Lit,
+    T: FromLiteral,
 {
     pub name: T,
     pub args: Vec<T>,
@@ -92,7 +94,7 @@ where
 impl<S: Debug, T: Debug> Debug for Directive<S, T>
 where
     S: Clone + Default,
-    T: Lit,
+    T: FromLiteral,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Directive")
@@ -106,7 +108,7 @@ where
 impl<S, T> PartialEq for Directive<S, T>
 where
     S: Clone + Default,
-    T: Lit,
+    T: FromLiteral,
 {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name && self.args == other.args && self.children == other.children
@@ -116,7 +118,7 @@ where
 impl<S, T> AsMut<Self> for Directive<S, T>
 where
     S: Clone + Default,
-    T: Lit,
+    T: FromLiteral,
 {
     fn as_mut(&mut self) -> &mut Self {
         self
@@ -126,7 +128,7 @@ where
 impl<S, T> Directive<S, T>
 where
     S: Clone + Default,
-    T: Lit + AsRef<str>,
+    T: FromLiteral + AsRef<str>,
 {
     pub fn query(&self, path: &str) -> Vec<Self> {
         let mut result = vec![];
