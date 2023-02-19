@@ -1,3 +1,5 @@
+//! Nom parser for nginx configuration
+
 pub mod lexer;
 
 use std::path::Path;

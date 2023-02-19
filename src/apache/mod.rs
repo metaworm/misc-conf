@@ -1,3 +1,5 @@
+//! Nom parser for apache configuration
+
 pub mod lexer;
 
 use std::path::Path;

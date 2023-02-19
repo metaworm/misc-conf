@@ -1,3 +1,5 @@
+//! Common AST structs and traits
+
 use std::{
     fmt::Debug,
     marker::PhantomData,
@@ -97,11 +99,12 @@ where
     T: FromLiteral,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Directive")
-            .field("name", &self.name)
-            .field("args", &self.args)
-            .field("children", &self.children)
-            .finish()
+        let mut ds = f.debug_struct("Directive");
+        ds.field("name", &self.name).field("args", &self.args);
+        if let Some(children) = self.children.as_ref() {
+            ds.field("children", children);
+        }
+        ds.finish()
     }
 }
 

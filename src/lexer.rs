@@ -1,3 +1,5 @@
+//! Common lexer utils
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Literal<'a> {
     pub raw: &'a str,

@@ -2,8 +2,13 @@
 name = "misc-conf"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "MIT"
+include = ["/src", "README.md"]
+keywords = ['nginx', 'apache', 'parser']
+documentation = "https://docs.rs/misc-conf"
+homepage = "https://crates.io/crates/misc-conf"
+repository = "https://github.com/metaworm/misc-conf"
+description = "Nom parser for nginx/apache configuration"
 
 [dependencies]
 nom = '7'
