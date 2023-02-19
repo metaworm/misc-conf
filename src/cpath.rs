@@ -1,3 +1,5 @@
+//! Common path for query nodes in AST, like a simple XPATH
+
 use std::ops::Deref;
 
 use crate::lexer::{line_column2, Literal};
