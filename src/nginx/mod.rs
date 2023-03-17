@@ -83,13 +83,16 @@ fn parse_block(mut input: &[u8]) -> IResult<&[u8], Vec<Directive<Nginx>>> {
     let mut result = vec![];
     loop {
         let mut d = Directive::default();
-        let (rest, tag) = parse_literal(input).map_err(|err| {
+        let (rest, tag) = tokenizer(input).map_err(|err| {
             err.map(|err| VerboseError::add_context(input, "unexpected item token", err))
         })?;
-        if tag.raw.is_empty() {
-            break;
+
+        d.name = match tag {
+            Token::Literal(lit) => lit,
+            Token::BlockEnd | Token::Eof => break,
+            _ => return fail(input),
         }
-        d.name = tag.into();
+        .into();
 
         let (rest, args) = map(many0(parse_literal), |v| {
             v.into_iter().map(Into::into).collect()
