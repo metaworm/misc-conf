@@ -34,3 +34,12 @@ fn include() {
     let conf2 = parse("tests/nginx/index.conf");
     assert_eq!(conf.root, conf2.root);
 }
+
+#[test]
+fn lua() {
+    let conf = parse("tests/nginx/lua.conf");
+    let d = conf.root.query("http/lua_shared_dict").pop().unwrap();
+    assert_eq!(d.name, "lua_shared_dict");
+    assert_eq!(d.args[0], "ocsp_response_cache");
+    assert_eq!(d.args[1], "5M");
+}

@@ -87,13 +87,12 @@ fn parse_block(mut input: &[u8]) -> IResult<&[u8], Vec<Directive<Nginx>>> {
             err.map(|err| VerboseError::add_context(input, "unexpected item token", err))
         })?;
 
-        d.name = match tag {
+        let lit = match tag {
             Token::Literal(lit) => lit,
             Token::BlockEnd | Token::Eof => break,
             _ => return fail(input),
-        }
-        .into();
-
+        };
+        d.name = lit.clone().into();
         let (rest, args) = map(many0(parse_literal), |v| {
             v.into_iter().map(Into::into).collect()
         })(rest)?;
@@ -105,6 +104,25 @@ fn parse_block(mut input: &[u8]) -> IResult<&[u8], Vec<Directive<Nginx>>> {
                 input = rest;
             }
             Token::Eof => break,
+            Token::BlockStart if lit.raw.ends_with("_by_lua_block") => {
+                use luaparse::token::*;
+
+                let mut pairs = 1usize;
+                let cow = String::from_utf8_lossy(rest);
+                let mut lexer = luaparse::Lexer::new(luaparse::InputCursor::new(&cow));
+                while let Some(Ok(tok)) = lexer.next() {
+                    match tok.value {
+                        TokenValue::Symbol(Symbol::CurlyBracketLeft) => pairs += 1,
+                        TokenValue::Symbol(Symbol::CurlyBracketRight) => pairs -= 1,
+                        _ => {}
+                    }
+                    if pairs == 0 {
+                        break;
+                    }
+                }
+
+                input = &rest[lexer.cursor().pos().byte..];
+            }
             Token::BlockStart => {
                 let (rest, res) = parse_block(rest)?;
                 d.children.replace(res);
