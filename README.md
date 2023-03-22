@@ -9,6 +9,7 @@ Nom parser for nginx/apache configuration
 - Resolve included configuration recursively [`ast::DirectiveTrait::resolve_include`]
 - Query nodes by specific path [`ast::Directive::query`]
 - Zero-copy string by using `Directive<S, Literal>` [`lexer::Literal`]
+- Support embed lua configuration for nginx
 
 ## Usage
 
