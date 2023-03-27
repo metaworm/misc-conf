@@ -13,7 +13,8 @@ use self::lexer::*;
 
 use anyhow::Context;
 use nom::{
-    combinator::{fail, map, map_opt, verify},
+    character::complete::space0,
+    combinator::{fail, map, map_opt, opt, verify},
     sequence::tuple,
     IResult,
 };
@@ -89,7 +90,14 @@ fn parse_block(mut input: &[u8]) -> IResult<&[u8], Vec<Directive<Apache>>> {
 fn parse_one<'a>(input: &'a [u8], tok: Token<'a>) -> IResult<&'a [u8], Directive<Apache>> {
     match tok {
         Token::OpenTag => {
-            let (rest, name) = map_opt(tokenizer, |tok| tok.ident())(input)?;
+            let (mut rest, name) = map_opt(tokenizer, |tok| tok.ident())(input)?;
+            let mut special = vec![];
+            if name.eq_ignore_ascii_case("IfVersion") {
+                let op;
+                (rest, _) = opt(space0)(rest)?;
+                (rest, op) = opt(lexer::operator_str)(rest)?;
+                op.map(|op| special.push(op.to_string()));
+            }
             map(
                 tuple((
                     parse_args::<false>,
@@ -104,11 +112,14 @@ fn parse_one<'a>(input: &'a [u8], tok: Token<'a>) -> IResult<&'a [u8], Directive
                             && e == Token::EndTag
                     }),
                 )),
-                |(args, _, children, _)| Directive {
-                    name: name.into(),
-                    args,
-                    children: Some(children),
-                    ..Default::default()
+                move |(args, _, children, _)| {
+                    special.extend(args);
+                    Directive {
+                        name: name.into(),
+                        args: std::mem::take(&mut special),
+                        children: Some(children),
+                        ..Default::default()
+                    }
                 },
             )(rest)
         }

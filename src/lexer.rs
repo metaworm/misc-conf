@@ -6,6 +6,12 @@ pub struct Literal<'a> {
     pub quote: u8,
 }
 
+impl<'a> From<&'a str> for Literal<'a> {
+    fn from(raw: &'a str) -> Self {
+        Self { raw, quote: 0 }
+    }
+}
+
 impl<'a> std::fmt::Display for Literal<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", Into::<String>::into(*self))

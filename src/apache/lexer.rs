@@ -44,6 +44,20 @@ impl<'a> Token<'a> {
     }
 }
 
+pub fn operator_str(input: &[u8]) -> IResult<&[u8], &str> {
+    map_res(
+        alt((
+            tag(b"<="),
+            tag(b">="),
+            tag(b">"),
+            tag(b"<"),
+            tag(b"="),
+            tag(b"=="),
+        )),
+        std::str::from_utf8,
+    )(input)
+}
+
 fn opentag(input: &[u8]) -> IResult<&[u8], Token> {
     value(Token::OpenTag, tag(b"<"))(input)
 }
