@@ -32,7 +32,7 @@ fn verify_result() {
 #[test]
 fn include() {
     let mut cfg = parse("tests/apache/confcase/include.conf");
-    cfg.resolve_include(None).unwrap();
+    cfg.resolve_include(None, None).unwrap();
 
     println!("{:#?}", cfg.root);
     assert_eq!(cfg.root_directives()[0].name, "DefaultRuntimeDir");

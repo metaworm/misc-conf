@@ -7,6 +7,7 @@ use std::path::Path;
 use crate::{
     ast::{Directive, DirectiveTrait},
     lexer::line_column2,
+    utils::*,
 };
 
 use self::lexer::*;
@@ -33,7 +34,12 @@ impl DirectiveTrait<Apache> for Directive<Apache> {
         Ok(res.1)
     }
 
-    fn resolve_include_inner(mut self, dir: &Path, out: &mut Vec<Self>) -> anyhow::Result<()> {
+    fn resolve_include_inner(
+        mut self,
+        dir: &Path,
+        out: &mut Vec<Self>,
+        res: Option<ResolvePath>,
+    ) -> anyhow::Result<()> {
         let optional = self.name.eq_ignore_ascii_case("IncludeOptional");
         if self.name.eq_ignore_ascii_case("include") || optional {
             let path = Path::new(
@@ -43,25 +49,26 @@ impl DirectiveTrait<Apache> for Directive<Apache> {
                     .as_str(),
             );
             for path in glob::glob(
-                &if path.is_absolute() {
+                &res.resolve(&if path.is_absolute() {
                     path.to_path_buf()
                 } else {
                     dir.join(path)
-                }
+                })?
                 .to_string_lossy(),
             )?
             .flatten()
             {
+                let path = res.resolve(&path)?;
                 if optional && !path.exists() {
                     continue;
                 }
                 let data = std::fs::read(&path)?;
                 for c in Self::parse(&data).with_context(|| format!("parse {path:?}"))? {
-                    c.resolve_include_inner(dir, out)?;
+                    c.resolve_include_inner(dir, out, res)?;
                 }
             }
         } else {
-            self.resolve_include(dir)?;
+            self.resolve_include(dir, res)?;
             out.push(self);
         }
         Ok(())

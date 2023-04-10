@@ -11,6 +11,7 @@ use anyhow::Context;
 use crate::{
     cpath::{CPath, Filter},
     lexer::Literal,
+    utils::ResolvePath,
 };
 
 pub trait FromLiteral: Eq + PartialEq + for<'a> From<Literal<'a>> + Clone + Default {}
@@ -52,9 +53,13 @@ where
             .expect("root must have children")
     }
 
-    pub fn resolve_include(&mut self, root_dir: Option<&Path>) -> anyhow::Result<()> {
+    pub fn resolve_include(
+        &mut self,
+        root_dir: Option<&Path>,
+        res: Option<ResolvePath>,
+    ) -> anyhow::Result<()> {
         self.root
-            .resolve_include(root_dir.or(self.path.parent()).context("no root_dir")?)?;
+            .resolve_include(root_dir.or(self.path.parent()).context("no root_dir")?, res)?;
         Ok(())
     }
 }
@@ -67,18 +72,23 @@ where
 {
     fn parse(input: &[u8]) -> anyhow::Result<Vec<Self>>;
 
-    fn resolve_include(&mut self, dir: &Path) -> anyhow::Result<()> {
+    fn resolve_include(&mut self, dir: &Path, res: Option<ResolvePath>) -> anyhow::Result<()> {
         if let Some(childs) = self.as_mut().children.take() {
             let mut result = vec![];
             for c in childs {
-                c.resolve_include_inner(dir, &mut result)?;
+                c.resolve_include_inner(dir, &mut result, res)?;
             }
             self.as_mut().children.replace(result);
         }
         Ok(())
     }
 
-    fn resolve_include_inner(self, dir: &Path, out: &mut Vec<Self>) -> anyhow::Result<()>;
+    fn resolve_include_inner(
+        self,
+        dir: &Path,
+        out: &mut Vec<Self>,
+        res: Option<ResolvePath>,
+    ) -> anyhow::Result<()>;
 }
 
 #[derive(Clone, Default, Eq)]
