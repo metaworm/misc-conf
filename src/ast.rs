@@ -101,6 +101,7 @@ where
     pub args: Vec<T>,
     pub children: Option<Vec<Directive<S, T>>>,
     pub(crate) _scheme: PhantomData<S>,
+    pub is_comment: bool,
 }
 
 impl<S: Debug, T: Debug> Debug for Directive<S, T>
@@ -110,7 +111,9 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut ds = f.debug_struct("Directive");
-        ds.field("name", &self.name).field("args", &self.args);
+        ds.field("name", &self.name)
+            .field("args", &self.args)
+            .field("is_comment", &self.is_comment);
         if let Some(children) = self.children.as_ref() {
             ds.field("children", children);
         }

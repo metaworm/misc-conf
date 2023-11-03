@@ -26,6 +26,7 @@ pub enum Token<'a> {
     NewLine,
     Eof,
     Literal(Literal<'a>),
+    Comment(Literal<'a>),
 }
 
 impl<'a> Token<'a> {
@@ -105,17 +106,25 @@ fn literal(input: &[u8]) -> IResult<&[u8], Token> {
         _ => {
             first = 0;
             map_res(
-                escaped(none_of(" \t\r\n;'\"\\"), '\\', anychar),
+                escaped(none_of("{ \t\r\n;'\"\\"), '\\', anychar),
                 std::str::from_utf8,
             )(input)
         }
     }?;
     Ok((input, Token::Literal(Literal { raw, quote: first })))
 }
+fn tocomment(input: &[u8]) -> IResult<&[u8], Token> {
+    map(tuple((tag("#"), take_till(is_newline))), |x| {
+        Token::Comment(Literal {
+            raw: std::str::from_utf8(x.1).unwrap_or_default(),
+            quote: b'#',
+        })
+    })(input)
+}
 
 pub fn tokenizer(mut input: &[u8]) -> IResult<&[u8], Token> {
     loop {
-        let (rest, cmt) = space_and_comment(input)?;
+        let (rest, cmt) = multispace0(input)?;
         input = rest;
         if cmt.is_none() {
             break;
@@ -126,9 +135,5 @@ pub fn tokenizer(mut input: &[u8]) -> IResult<&[u8], Token> {
         return Ok((input, Token::Eof));
     }
 
-    alt((starttag, endtag, semicolon, literal))(input)
-}
-
-fn space_and_comment(input: &[u8]) -> IResult<&[u8], Option<&[u8]>> {
-    map(tuple((multispace0, opt(comment))), |x| x.1)(input)
+    alt((starttag, endtag, tocomment, semicolon, literal))(input)
 }

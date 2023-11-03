@@ -96,6 +96,13 @@ fn parse_block(mut input: &[u8]) -> IResult<&[u8], Vec<Directive<Nginx>>> {
         let lit = match tag {
             Token::Literal(lit) => lit,
             Token::BlockEnd | Token::Eof => break,
+            Token::Comment(c) => {
+                d.is_comment = true;
+                d.name = c.raw.to_string();
+                result.push(d);            
+                input = rest;
+                continue;
+            }
             _ => return fail(input),
         };
         d.name = lit.clone().into();
