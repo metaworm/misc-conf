@@ -26,6 +26,7 @@ pub enum Token<'a> {
     NewLine,
     Eof,
     Literal(Literal<'a>),
+    Comment(Literal<'a>),
 }
 
 impl<'a> Token<'a> {
@@ -62,18 +63,6 @@ fn semicolon(input: &[u8]) -> IResult<&[u8], Token> {
     value(Token::Semicolon, tag(b";"))(input)
 }
 
-fn comment(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    map(
-        tuple((
-            tag("#"),
-            take_till(is_newline),
-            opt(tag(b"\r")),
-            opt(tag(b"\n")),
-        )),
-        |x| x.1,
-    )(input)
-}
-
 fn literal(input: &[u8]) -> IResult<&[u8], Token> {
     let (_, mut first) = be_u8(input)?;
 
@@ -105,7 +94,7 @@ fn literal(input: &[u8]) -> IResult<&[u8], Token> {
         _ => {
             first = 0;
             map_res(
-                escaped(none_of(" \t\r\n;'\"\\"), '\\', anychar),
+                escaped(none_of("{ \t\r\n;'\"\\"), '\\', anychar),
                 std::str::from_utf8,
             )(input)
         }
@@ -113,22 +102,36 @@ fn literal(input: &[u8]) -> IResult<&[u8], Token> {
     Ok((input, Token::Literal(Literal { raw, quote: first })))
 }
 
+fn tocomment(input: &[u8]) -> IResult<&[u8], Token> {
+    map(tuple((tag("#"), take_till(is_newline))), |x| {
+        Token::Comment(Literal {
+            raw: std::str::from_utf8(x.1).unwrap_or_default(),
+            quote: b'#',
+        })
+    })(input)
+}
+
 pub fn tokenizer(mut input: &[u8]) -> IResult<&[u8], Token> {
     loop {
-        let (rest, cmt) = space_and_comment(input)?;
+        let (rest, cmt) = multispace0(input)?;
+        // println!("{cmt:?}");
+        // if let Some(c) = cmt.clone() {
+        //     // println!("{}", String::from_utf8_lossy(rest).to_string());
+        //     println!("{}", String::from_utf8(c).unwrap_or_default());
+        // }
+        // println!("{} {} {} - {:?}", rest.len(), cmt.len(), input.len(), cmt);
+        // println!("{}", String::from_utf8_lossy(cmt).to_string());
         input = rest;
-        if cmt.is_none() {
+        if cmt.len() == 0 {
             break;
         }
     }
+
+    // println!("{}", String::from_utf8_lossy(input).to_string());
 
     if input.len() == 0 {
         return Ok((input, Token::Eof));
     }
 
-    alt((starttag, endtag, semicolon, literal))(input)
-}
-
-fn space_and_comment(input: &[u8]) -> IResult<&[u8], Option<&[u8]>> {
-    map(tuple((multispace0, opt(comment))), |x| x.1)(input)
+    alt((starttag, endtag, tocomment, semicolon, literal))(input)
 }
