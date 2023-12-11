@@ -63,18 +63,6 @@ fn semicolon(input: &[u8]) -> IResult<&[u8], Token> {
     value(Token::Semicolon, tag(b";"))(input)
 }
 
-fn comment(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    map(
-        tuple((
-            tag("#"),
-            take_till(is_newline),
-            opt(tag(b"\r")),
-            opt(tag(b"\n")),
-        )),
-        |x| x.1,
-    )(input)
-}
-
 fn literal(input: &[u8]) -> IResult<&[u8], Token> {
     let (_, mut first) = be_u8(input)?;
 
@@ -113,6 +101,7 @@ fn literal(input: &[u8]) -> IResult<&[u8], Token> {
     }?;
     Ok((input, Token::Literal(Literal { raw, quote: first })))
 }
+
 fn tocomment(input: &[u8]) -> IResult<&[u8], Token> {
     map(tuple((tag("#"), take_till(is_newline))), |x| {
         Token::Comment(Literal {
@@ -125,11 +114,20 @@ fn tocomment(input: &[u8]) -> IResult<&[u8], Token> {
 pub fn tokenizer(mut input: &[u8]) -> IResult<&[u8], Token> {
     loop {
         let (rest, cmt) = multispace0(input)?;
+        // println!("{cmt:?}");
+        // if let Some(c) = cmt.clone() {
+        //     // println!("{}", String::from_utf8_lossy(rest).to_string());
+        //     println!("{}", String::from_utf8(c).unwrap_or_default());
+        // }
+        // println!("{} {} {} - {:?}", rest.len(), cmt.len(), input.len(), cmt);
+        // println!("{}", String::from_utf8_lossy(cmt).to_string());
         input = rest;
-        if cmt.is_none() {
+        if cmt.len() == 0 {
             break;
         }
     }
+
+    // println!("{}", String::from_utf8_lossy(input).to_string());
 
     if input.len() == 0 {
         return Ok((input, Token::Eof));

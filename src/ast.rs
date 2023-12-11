@@ -100,8 +100,9 @@ where
     pub name: T,
     pub args: Vec<T>,
     pub children: Option<Vec<Directive<S, T>>>,
-    pub(crate) _scheme: PhantomData<S>,
+    pub _scheme: PhantomData<S>,
     pub is_comment: bool,
+    pub newline: bool,
 }
 
 impl<S: Debug, T: Debug> Debug for Directive<S, T>
@@ -146,31 +147,83 @@ where
     S: Clone + Default,
     T: FromLiteral + AsRef<str>,
 {
-    pub fn query(&self, path: &str) -> Vec<Self> {
+    pub fn query(&mut self, path: &str) -> Vec<&mut Self> {
         let mut result = vec![];
-        if let Some(childs) = self.children.as_ref() {
-            Self::inner_query(childs, path, &mut result);
-        }
+        Self::inner_query(vec![self], path, &mut result);
         result
     }
 
-    fn inner_query(dirs: &[Self], path: &str, out: &mut Vec<Self>) {
+    fn inner_query<'a>(dirs: Vec<&'a mut Self>, path: &str, out: &mut Vec<&'a mut Self>) {
         let mut pathitem = path;
         let mut rest = None;
         if let Some((i, r)) = path.split_once("/") {
             pathitem = i;
             rest.replace(r);
         }
-        for d in dirs.iter() {
+        for d in dirs {
             if d.name.as_ref().eq_ignore_ascii_case(pathitem) {
                 if let Some(path) = rest {
                     Self::inner_query(
-                        d.children.as_ref().map(Vec::as_slice).unwrap_or(&[]),
+                        d.children.iter_mut().flatten().collect::<Vec<_>>(),
                         path,
                         out,
                     );
                 } else {
-                    out.push(d.clone());
+                    out.push(d);
+                }
+            }
+        }
+    }
+
+    pub fn remove(&mut self, path: &str, values: Option<&[&str]>) -> &mut Self {
+        self.inner_remove(path, values);
+        self
+    }
+
+    fn inner_remove(&mut self, path: &str, values: Option<&[&str]>) {
+        let mut pathitem = path;
+        let mut rest = None;
+
+        if let Some((i, r)) = path.split_once("/") {
+            pathitem = i;
+            rest.replace(r);
+        }
+
+        if self.name.as_ref().eq_ignore_ascii_case(pathitem)
+            && self.children.is_some()
+            && rest.is_some()
+        {
+            let rest = rest.unwrap();
+            let mut i = 0;
+            let childs = self.children.as_mut().unwrap();
+            while i < childs.len() {
+                let c = childs[i].as_mut();
+                let mut removed = false;
+
+                if rest.split_once("/").is_some() {
+                    c.remove(rest, values);
+                } else if c.name.as_ref().eq_ignore_ascii_case(rest) {
+                    let mut all_same = true;
+                    if values.is_some() {
+                        let values = values.unwrap();
+                        if values.len() == c.args.len() {
+                            let mut ia = c.args.iter();
+                            values.iter().any(|x| {
+                                all_same = ia.next().unwrap().as_ref().contains(x);
+                                !all_same
+                            });
+                        } else {
+                            all_same = false;
+                        }
+                    }
+                    if all_same {
+                        childs.remove(i);
+                        removed = true;
+                    }
+                }
+
+                if !removed {
+                    i += 1;
                 }
             }
         }
@@ -213,5 +266,72 @@ where
             Filter::Any => true,
             Filter::AnyLevel => false,
         }
+    }
+}
+
+impl<S> Directive<S, String>
+where
+    S: Clone + Default,
+{
+    pub fn to_string(&self, depth: usize) -> std::string::String {
+        let mut result = String::new();
+
+        if self.newline {
+            result += "\n";
+            result += &"\t".repeat(depth - 1);
+        }
+
+        if self.children.is_some() {
+            result += "\n";
+            result += &"\t".repeat(depth - 1);
+        }
+
+        if self.is_comment {
+            result += &format!("#{}\n", self.name);
+            return result;
+        }
+
+        result += self.name.as_str();
+        let mut need_com = false;
+        if self.args.len() > 0 {
+            result += " ";
+            result += self.args.join(" ").as_str();
+            if let Some(last) = self.args.last() {
+                need_com = !last.ends_with(";");
+            }
+        }
+
+        if let Some(children) = &self.children {
+            if !self.name.is_empty() {
+                result += " {";
+                if children.len() > 0 {
+                    result += children
+                        .iter()
+                        .map(|x| "\t".repeat(depth).to_string() + &x.to_string(depth + 1))
+                        .collect::<String>()
+                        .as_str();
+                } else {
+                    result += "\n";
+                }
+                result += ("\t".repeat(depth - 1).to_string() + "}\n").as_str();
+            } else {
+                if need_com {
+                    result += ";";
+                }
+                if children.len() > 0 {
+                    result += children
+                        .iter()
+                        .map(|x| x.to_string(depth))
+                        .collect::<String>()
+                        .as_str();
+                }
+            }
+        } else {
+            if need_com {
+                result += ";";
+            }
+            result += "\n";
+        }
+        result
     }
 }
